@@ -58,7 +58,7 @@ impl BaseRow {
             environment_label,
         }
     }
-    pub fn new_random_row(object_label: char, environment_label: char) -> Self {
+    pub fn randomized_objects(object_label: char, environment_label: char) -> Self {
         let mut rng = rand::thread_rng();
         let mut objects = Vec::with_capacity(14);
         for _ in 0..14 {
@@ -195,7 +195,7 @@ impl RowType for Grass {
 }
 
 pub struct GameState {
-    gameboard: Vec<BaseRow>,
+    gameboard: Vec<Box<dyn RowType>>,
     player: (usize, usize),
     keyreader: KeyReader,
     player_score: u32,
@@ -203,19 +203,35 @@ pub struct GameState {
 
 impl GameState {
     pub fn new() -> Self {
+        let mut bottom_row = BaseRow::randomized_objects(TREE, GRASS);
+        bottom_row.objects[7] = false; 
         Self {
             gameboard: vec![
-                BaseRow::new_random_row('🌲', '🟩'),
-                BaseRow::new_random_row('🌲', '🟩'),
-                BaseRow::new_random_row('🌲', '🟩'),
-                BaseRow::new_random_row('🌲', '🟩'),
-                BaseRow::new_random_row('🌲', '🟩'),
-                BaseRow::new_random_row('🌲', '🟩'),
-                BaseRow::new_random_row('🌲', '🟩'),
+                Box::new(Grass::new(bottom_row.objects)),
+                Box::new(Grass::new(BaseRow::randomized_objects(TREE, GRASS).objects)),
+                GameState::create_random_row(None),
+                GameState::create_random_row(None),
+                GameState::create_random_row(None),
+                GameState::create_random_row(None),
+                GameState::create_random_row(None),
             ],
             player: (7, 0),
             keyreader: KeyReader::new(),
             player_score: 0,
+        }
+    }
+
+    pub fn create_random_row(previous_row: Option<&BaseRow>) -> Box<dyn RowType> {
+        let mut rng = rand::thread_rng();
+        let row_type = rng.gen_range(0..=2);
+        let interval = rng.gen_range(1..=5);
+        let direction = rng.gen_bool(0.5);
+        let objects = BaseRow::randomized_objects(TREE, GRASS).objects;
+
+        match row_type {
+            0 => Box::new(Stream::new(objects, interval, direction)),
+            1 => Box::new(Road::new(objects, interval, direction)),
+            _ => Box::new(Grass::new(objects)),
         }
     }
 
@@ -225,16 +241,16 @@ impl GameState {
         let player_row_index = self.player.1;
 
         for (row_index, row) in self.gameboard.iter().enumerate().rev() {
-            for (col_index, &obj) in row.objects.iter().enumerate() {
+            for (col_index, &obj) in row.new().objects.iter().enumerate() {
                 if row_index == player_row_index && col_index == self.player.0 {
                     print!("🐸");
                 } else {
                     print!(
                         "{}",
                         if obj {
-                            row.object_label
+                            row.new().object_label
                         } else {
-                            row.environment_label
+                            row.new().environment_label
                         }
                     );
                 }
@@ -258,15 +274,15 @@ impl GameState {
                 Key::Char('w') | Key::ArrowUp => {
                     if self.player.1 < 3 {
                         let new_y = self.player.1 + 1;
-                        let is_tree = self.gameboard[new_y].objects[self.player.0];
+                        let is_tree = self.gameboard[new_y].new().objects[self.player.0];
                         if !is_tree {
                             self.player.1 = new_y;
                             self.player_score += 1;
                         }
                     } else if self.player.1 == 3 {
-                        let next_row_tree = self.gameboard[4].objects[self.player.0];
+                        let next_row_tree = self.gameboard[4].new().objects[self.player.0];
                         if !next_row_tree {
-                            let new_row = BaseRow::new_random_row('🌲', '🟩');
+                            let new_row = GameState::create_random_row(Some(&self.gameboard[3].new()));
                             self.gameboard.remove(0);
                             self.gameboard.push(new_row);
                             self.player_score += 1;
@@ -276,7 +292,7 @@ impl GameState {
                 Key::Char('a') | Key::ArrowLeft => {
                     if self.player.0 > 0 {
                         let new_x = self.player.0 - 1;
-                        let is_tree = self.gameboard[self.player.1].objects[new_x];
+                        let is_tree = self.gameboard[self.player.1].new().objects[new_x];
                         if !is_tree {
                             self.player.0 = new_x;
                         }
@@ -285,7 +301,7 @@ impl GameState {
                 Key::Char('s') | Key::ArrowDown => {
                     if self.player.1 > 0 {
                         let new_y = self.player.1 - 1;
-                        let is_tree = self.gameboard[new_y].objects[self.player.0];
+                        let is_tree = self.gameboard[new_y].new().objects[self.player.0];
                         if !is_tree {
                             self.player.1 = new_y;
                         }
@@ -294,7 +310,7 @@ impl GameState {
                 Key::Char('d') | Key::ArrowRight => {
                     if self.player.0 < 13 {
                         let new_x = self.player.0 + 1;
-                        let is_tree = self.gameboard[self.player.1].objects[new_x];
+                        let is_tree = self.gameboard[self.player.1].new().objects[new_x];
                         if !is_tree {
                             self.player.0 = new_x;
                         }

@@ -1,12 +1,21 @@
+use std::fmt::Debug;
 use console::{Key, Term};
 use rand::Rng;
 use std::char;
 use tokio::time::{sleep, Duration};
 
+const GRASS: char = '🟩';
+const TREE: char = '🌲';
+const ROAD: char = '⬛';
+const CAR: char = '🚗';
+const WATER: char = '🟦';
+const PAD: char = '🟢';
+
 #[derive(Debug)]
 pub struct KeyReader {
     jh: Option<tokio::task::JoinHandle<Key>>,
 }
+
 impl KeyReader {
     pub fn new() -> KeyReader {
         KeyReader {
@@ -34,13 +43,14 @@ impl KeyReader {
     }
 }
 
-pub struct Row {
+#[derive(Debug)]
+pub struct BaseRow {
     objects: Vec<bool>,
     object_label: char,
     environment_label: char,
 }
 
-impl Row {
+impl BaseRow {
     pub fn new(objects: Vec<bool>, object_label: char, environment_label: char) -> Self {
         Self {
             objects,
@@ -62,8 +72,72 @@ impl Row {
     }
 }
 
+#[derive(Debug)]
+pub struct DynamicRow {
+    row: BaseRow,
+    direction: bool,
+    interval: u8,
+    tick_count: u8,
+}
+
+impl DynamicRow {
+    pub fn new(row: BaseRow, direction: bool, interval: u8) -> Self {
+        Self {
+            row,
+            direction,
+            interval,
+            tick_count: 0,
+        }
+    }
+}
+
+pub trait RowType: Debug {
+    fn new(&self) -> &BaseRow;
+    fn tick(&mut self) -> Option<bool>;
+    fn check_position(&self, column_index: usize) -> Option<bool>;
+}
+
+#[derive(Debug)]
+pub struct Stream {
+    pub dynamic_row: DynamicRow,
+}
+
+impl Stream {
+    pub fn new(objects: Vec<bool>, interval: u8, direction: bool) -> Self {
+        Self {
+            dynamic_row: DynamicRow::new(BaseRow::new(objects, PAD, WATER), direction, interval),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Road {
+    pub dynamic_row: DynamicRow,
+}
+
+impl Road {
+    pub fn new(objects: Vec<bool>, interval: u8, direction: bool) -> Self {
+        Self {
+            dynamic_row: DynamicRow::new(BaseRow::new(objects, CAR, ROAD), direction, interval),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Grass {
+    pub baserow: BaseRow,
+}
+
+impl Grass {
+    pub fn new(objects: Vec<bool>) -> Self {
+        Self {
+            baserow: BaseRow::new(objects, TREE, GRASS),
+        }
+    }
+}
+
 pub struct GameState {
-    gameboard: Vec<Row>,
+    gameboard: Vec<BaseRow>,
     player: (usize, usize),
     keyreader: KeyReader,
     player_score: u32,
@@ -73,13 +147,13 @@ impl GameState {
     pub fn new() -> Self {
         Self {
             gameboard: vec![
-                Row::new_random_row('🌲', '🟩'),
-                Row::new_random_row('🌲', '🟩'),
-                Row::new_random_row('🌲', '🟩'),
-                Row::new_random_row('🌲', '🟩'),
-                Row::new_random_row('🌲', '🟩'),
-                Row::new_random_row('🌲', '🟩'),
-                Row::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
+                BaseRow::new_random_row('🌲', '🟩'),
             ],
             player: (7, 0),
             keyreader: KeyReader::new(),
@@ -135,7 +209,7 @@ impl GameState {
                     } else if self.player.1 == 3 {
                         let next_row_tree = self.gameboard[4].objects[self.player.0];
                         if !next_row_tree {
-                            let new_row = Row::new_random_row('🌲', '🟩');
+                            let new_row = BaseRow::new_random_row('🌲', '🟩');
                             self.gameboard.remove(0);
                             self.gameboard.push(new_row);
                             self.player_score += 1;

@@ -1,7 +1,7 @@
-use std::fmt::Debug;
 use console::{Key, Term};
 use rand::Rng;
 use std::char;
+use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
 
 const GRASS: char = '🟩';
@@ -110,6 +110,29 @@ impl Stream {
     }
 }
 
+impl RowType for Stream {
+    fn new(&self) -> &BaseRow {
+        &self.dynamic_row.row
+    }
+    fn tick(&mut self) -> Option<bool> {
+        self.dynamic_row.tick_count += 1;
+        if self.dynamic_row.tick_count >= self.dynamic_row.interval {
+            self.dynamic_row.tick_count = 0;
+            if self.dynamic_row.direction {
+                self.dynamic_row.row.objects.insert(0, self.dynamic_row.row.objects.clone().pop().unwrap());
+            } else {
+                self.dynamic_row.row.objects.push(self.dynamic_row.row.objects.clone().remove(0));
+            }
+            Some(true)
+        } else {
+            None
+        }
+    }
+    fn check_position(&self, column_index: usize) -> Option<bool> {
+        Some(self.dynamic_row.row.objects[column_index])
+    }
+}
+
 #[derive(Debug)]
 pub struct Road {
     pub dynamic_row: DynamicRow,
@@ -123,6 +146,29 @@ impl Road {
     }
 }
 
+impl RowType for Road {
+    fn new(&self) -> &BaseRow {
+        &self.dynamic_row.row
+    }
+    fn tick(&mut self) -> Option<bool> {
+        self.dynamic_row.tick_count += 1;
+        if self.dynamic_row.tick_count >= self.dynamic_row.interval {
+            self.dynamic_row.tick_count = 0;
+            if self.dynamic_row.direction {
+                self.dynamic_row.row.objects.insert(0, self.dynamic_row.row.objects.clone().pop().unwrap());
+            } else {
+                self.dynamic_row.row.objects.push(self.dynamic_row.row.objects.clone().remove(0));
+            }
+            Some(true)
+        } else {
+            None
+        }
+    }
+    fn check_position(&self, column_index: usize) -> Option<bool> {
+        Some(self.dynamic_row.row.objects[column_index])
+    }
+}
+
 #[derive(Debug)]
 pub struct Grass {
     pub baserow: BaseRow,
@@ -133,6 +179,18 @@ impl Grass {
         Self {
             baserow: BaseRow::new(objects, TREE, GRASS),
         }
+    }
+}
+
+impl RowType for Grass {
+    fn new(&self) -> &BaseRow {
+        &self.baserow
+    }
+    fn tick(&mut self) -> Option<bool> {
+        None
+    }
+    fn check_position(&self, column_index: usize) -> Option<bool> {
+        Some(self.baserow.objects[column_index])
     }
 }
 
@@ -184,7 +242,6 @@ impl GameState {
             println!();
         }
         println!("Score: {}", self.player_score);
-
     }
 
     pub async fn run(&mut self) {
@@ -249,7 +306,6 @@ impl GameState {
         }
     }
 }
-
 
 #[tokio::main]
 async fn main() {

@@ -274,6 +274,12 @@ impl GameState {
     }
 
     pub async fn tick(&mut self) {
+        self.gameboard.iter_mut().for_each(|row| {
+            row.tick();
+        });
+        if self.update_player().await {
+            self.update_stack();
+        }
         //
         // Iterate over the gameboard and call tick on each row
         // update the player position based on key inputs -- call update_player if true call update stack
@@ -282,8 +288,42 @@ impl GameState {
         //
     }
 
+    pub fn update_stack(&mut self) {
+        self.gameboard.remove(0);
+        self.gameboard.push(GameState::create_random_row(None));
+    }
+
+    pub async fn player_movement(&mut self, key: Key) {
+        match key {
+            Key::Char('w') | Key::ArrowUp => {
+                if self.player.1 < 6 {
+                    self.player.1 += 1;
+                }
+            }
+            Key::Char('s') | Key::ArrowDown => {
+                if self.player.1 > 0 {
+                    self.player.1 -= 1;
+                }
+            }
+            Key::Char('a') | Key::ArrowLeft => {
+                if self.player.0 > 0 {
+                    self.player.0 -= 1;
+                }
+            }
+            Key::Char('d') | Key::ArrowRight => {
+                if self.player.0 < 14 {
+                    self.player.0 += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub async fn run(&mut self) {
         loop {
+            if let Some(key) = self.keyreader.read_key().await {
+                self.player_movement(key).await;
+            }
             self.print_gameboard();
             self.update_player().await;
             sleep(Duration::from_millis(50)).await;
@@ -305,7 +345,6 @@ impl GameState {
                 | Key::ArrowRight => true,
                 Key::Escape => {
                     std::process::exit(0);
-                    false // This line is unreachable but included for completeness
                 }
                 _ => false,
             }

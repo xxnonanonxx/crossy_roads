@@ -293,37 +293,8 @@ impl GameState {
         self.gameboard.push(GameState::create_random_row(None));
     }
 
-    pub async fn player_movement(&mut self, key: Key) {
-        match key {
-            Key::Char('w') | Key::ArrowUp => {
-                if self.player.1 < 6 {
-                    self.player.1 += 1;
-                }
-            }
-            Key::Char('s') | Key::ArrowDown => {
-                if self.player.1 > 0 {
-                    self.player.1 -= 1;
-                }
-            }
-            Key::Char('a') | Key::ArrowLeft => {
-                if self.player.0 > 0 {
-                    self.player.0 -= 1;
-                }
-            }
-            Key::Char('d') | Key::ArrowRight => {
-                if self.player.0 < 14 {
-                    self.player.0 += 1;
-                }
-            }
-            _ => {}
-        }
-    }
-
     pub async fn run(&mut self) {
         loop {
-            if let Some(key) = self.keyreader.read_key().await {
-                self.player_movement(key).await;
-            }
             self.print_gameboard();
             self.update_player().await;
             sleep(Duration::from_millis(50)).await;
@@ -335,21 +306,34 @@ impl GameState {
     pub async fn update_player(&mut self) -> bool {
         if let Some(key) = self.keyreader.read_key().await {
             match key {
-                Key::Char('w')
-                | Key::Char('a')
-                | Key::Char('s')
-                | Key::Char('d')
-                | Key::ArrowUp
-                | Key::ArrowDown
-                | Key::ArrowLeft
-                | Key::ArrowRight => true,
-                Key::Escape => {
-                    std::process::exit(0);
+                Key::Char('w') | Key::ArrowUp => {
+                    if self.player.1 < 6 {
+                        self.player.1 += 1;
+                    }
+                    return true;
                 }
-                _ => false,
+                Key::Char('s') | Key::ArrowDown => {
+                    if self.player.1 > 0 {
+                        self.player.1 -= 1;
+                    }
+                    return false;
+                }
+                Key::Char('a') | Key::ArrowLeft => {
+                    if self.player.0 > 0 {
+                        self.player.0 -= 1;
+                    }
+                    return false;
+                }
+                Key::Char('d') | Key::ArrowRight => {
+                    if self.player.0 < 14 {
+                        self.player.0 += 1;
+                    }
+                    return false;
+                }
+                _ => return false,
             }
         } else {
-            false
+            return false;
         }
     }
 }

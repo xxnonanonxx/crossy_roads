@@ -19,7 +19,7 @@ pub struct KeyReader {
 impl KeyReader {
     pub fn new() -> KeyReader {
         KeyReader {
-            jh: Some(tokio::spawn(async { Self::await_key_press().await })),
+            jh: Some(tokio::spawn(Self::await_key_press())),
         }
     }
 
@@ -273,41 +273,37 @@ impl GameState {
         println!("Score: {}", self.player_score);
     }
 
-    pub async fn tick(&mut self) {
+    pub async fn tick(&mut self, key: Key) {
         self.gameboard.iter_mut().for_each(|row| {
             row.tick();
         });
-        if self.update_player().await {
+            if self.update_player(key).await {
             self.update_stack();
-        }
-        //
-        // Iterate over the gameboard and call tick on each row
-        // update the player position based on key inputs -- call update_player if true call update stack
+        } 
         // check the updated player position for legality
         // bounce back if needed
-        //
     }
 
     pub fn update_stack(&mut self) {
         self.gameboard.remove(0);
         self.gameboard.push(GameState::create_random_row(None));
+        println!("Updated stack");
     }
 
     pub async fn run(&mut self) {
         loop {
+            if let Some(key) = self.keyreader.read_key().await {
+                self.tick(key).await;
+            }
             self.print_gameboard();
-            self.update_player().await;
             sleep(Duration::from_millis(50)).await;
         }
     }
-    // move if let Some(key) inside run loop
 
-    // update player will return bool whether to call update_stack
-    pub async fn update_player(&mut self) -> bool {
-        if let Some(key) = self.keyreader.read_key().await {
+    pub async fn update_player(&mut self, key: Key) -> bool {
             match key {
                 Key::Char('w') | Key::ArrowUp => {
-                    if self.player.1 < 6 {
+                    if self.player.1 < 3 {
                         self.player.1 += 1;
                     }
                     return true;
@@ -332,11 +328,10 @@ impl GameState {
                 }
                 _ => return false,
             }
-        } else {
-            return false;
-        }
-    }
+    } 
 }
+
+
 
 #[tokio::main]
 async fn main() {

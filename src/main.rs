@@ -273,11 +273,11 @@ impl GameState {
         println!("Score: {}", self.player_score);
     }
 
-    pub async fn tick(&mut self, key: Key) {
+    pub async fn tick(&mut self, key: Option<Key>) {
         self.gameboard.iter_mut().for_each(|row| {
             row.tick();
         });
-            if self.update_player(key).await {
+            if key.is_some() && self.update_player(key.unwrap()).await {
             self.update_stack();
         } 
         // check the updated player position for legality
@@ -293,7 +293,9 @@ impl GameState {
     pub async fn run(&mut self) {
         loop {
             if let Some(key) = self.keyreader.read_key().await {
-                self.tick(key).await;
+                self.tick(Some(key)).await;
+            } else {
+                self.tick(None).await;
             }
             self.print_gameboard();
             sleep(Duration::from_millis(50)).await;

@@ -89,6 +89,21 @@ impl DynamicRow {
             tick_count: 0,
         }
     }
+    pub fn tick(&mut self) {
+        self.tick_count += 1;
+        if self.tick_count >= self.interval {
+            self.tick_count = 0;
+        }
+            if self.direction {
+                self.row
+                    .objects
+                    .insert(0, self.row.objects.clone().pop().unwrap());
+            } else {
+                self.row
+                    .objects
+                    .push(self.row.objects.clone().remove(0));
+            }
+    }
 }
 
 pub trait RowType: Debug {
@@ -115,24 +130,8 @@ impl RowType for Stream {
         &self.dynamic_row.row
     }
     fn tick(&mut self) -> Option<bool> {
-        self.dynamic_row.tick_count += 1;
-        if self.dynamic_row.tick_count >= self.dynamic_row.interval {
-            self.dynamic_row.tick_count = 0;
-            if self.dynamic_row.direction {
-                self.dynamic_row
-                    .row
-                    .objects
-                    .insert(0, self.dynamic_row.row.objects.clone().pop().unwrap());
-            } else {
-                self.dynamic_row
-                    .row
-                    .objects
-                    .push(self.dynamic_row.row.objects.clone().remove(0));
-            }
-            Some(true)
-        } else {
-            None
-        }
+        self.dynamic_row.tick();
+        None
     }
     fn check_position(&self, column_index: usize) -> Option<bool> {
         Some(self.dynamic_row.row.objects[column_index])
@@ -157,24 +156,8 @@ impl RowType for Road {
         &self.dynamic_row.row
     }
     fn tick(&mut self) -> Option<bool> {
-        self.dynamic_row.tick_count += 1;
-        if self.dynamic_row.tick_count >= self.dynamic_row.interval {
-            self.dynamic_row.tick_count = 0;
-            if self.dynamic_row.direction {
-                self.dynamic_row
-                    .row
-                    .objects
-                    .insert(0, self.dynamic_row.row.objects.clone().pop().unwrap());
-            } else {
-                self.dynamic_row
-                    .row
-                    .objects
-                    .push(self.dynamic_row.row.objects.clone().remove(0));
-            }
-            Some(true)
-        } else {
-            None
-        }
+        self.dynamic_row.tick();
+        None
     }
     fn check_position(&self, column_index: usize) -> Option<bool> {
         Some(self.dynamic_row.row.objects[column_index])
@@ -292,12 +275,12 @@ impl GameState {
 
     pub async fn run(&mut self) {
         loop {
+            self.print_gameboard();
             if let Some(key) = self.keyreader.read_key().await {
                 self.tick(Some(key)).await;
             } else {
                 self.tick(None).await;
             }
-            self.print_gameboard();
             sleep(Duration::from_millis(50)).await;
         }
     }

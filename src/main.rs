@@ -130,8 +130,7 @@ impl RowType for Stream {
         &self.dynamic_row.row
     }
     fn tick(&mut self) -> Option<bool> {
-        self.dynamic_row.tick();
-        None
+        Some(self.dynamic_row.direction)
     }
     fn check_position(&self, column_index: usize) -> Option<bool> {
         Some(self.dynamic_row.row.objects[column_index])

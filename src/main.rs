@@ -29,20 +29,15 @@ impl KeyReader {
     }
 
     pub async fn read_key(&mut self) -> Option<Key> {
-        if let Some(handle) = self.jh.take() {
-            match handle.await {
-                Ok(key) => {
-                    self.jh = Some(tokio::spawn(async { Self::await_key_press().await }));
-                    Some(key)
-                }
-                Err(_) => None,
-            }
+        if self.jh.as_ref().unwrap().is_finished() {
+            let key = self.jh.take().unwrap().await.unwrap();
+            self.jh = Some(tokio::spawn(Self::await_key_press()));
+            Some(key)
         } else {
             None
         }
     }
 }
-
 #[derive(Debug)]
 pub struct BaseRow {
     objects: Vec<bool>,

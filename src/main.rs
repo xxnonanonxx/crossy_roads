@@ -84,21 +84,26 @@ impl DynamicRow {
             tick_count: 0,
         }
     }
-    pub fn tick(&mut self) {
-        self.tick_count += 1;
-        if self.tick_count >= self.interval {
+    pub fn tick(&mut self) -> Option<bool> {
+        if self.tick_count >= self.interval * 5 {
             self.tick_count = 0;
+            self.update_row();
+            Some(self.direction)
+        } else {
+            self.tick_count += 1;
+            None
         }
-            if self.direction {
-                self.row
-                    .objects
-                    .insert(0, self.row.objects.clone().pop().unwrap());
-            } else {
-                self.row
-                    .objects
-                    .push(self.row.objects.clone().remove(0));
-            }
     }
+
+    pub fn update_row(&mut self) {
+        if self.direction {
+           self.row.objects.pop();
+           self.row.objects.insert(0, rand::thread_rng().gen_bool(0.5)); 
+        } else {
+           self.row.objects.remove(0);
+           self.row.objects.push(rand::thread_rng().gen_bool(0.5));
+        }
+    } 
 }
 
 pub trait RowType: Debug {
@@ -125,7 +130,7 @@ impl RowType for Stream {
         &self.dynamic_row.row
     }
     fn tick(&mut self) -> Option<bool> {
-        Some(self.dynamic_row.direction)
+        self.dynamic_row.tick()
     }
     fn check_position(&self, column_index: usize) -> Option<bool> {
         Some(self.dynamic_row.row.objects[column_index])
@@ -214,7 +219,7 @@ impl GameState {
     pub fn create_random_row(previous_row: Option<&BaseRow>) -> Box<dyn RowType> {
         let mut rng = rand::thread_rng();
         let row_type = rng.gen_range(0..=2);
-        let interval = rng.gen_range(1..=5);
+        let interval = rng.gen_range(1..=10);
         let direction = rng.gen_bool(0.5);
         let objects = BaseRow::randomized_objects(TREE, GRASS).objects;
 
@@ -259,6 +264,7 @@ impl GameState {
         } 
         // check the updated player position for legality
         // bounce back if needed
+        // pads move the player, water kills, roads don't move the player, cars kill
     }
 
     pub fn update_stack(&mut self) {
